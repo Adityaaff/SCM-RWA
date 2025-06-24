@@ -17,5 +17,3 @@ This project is a complete supply chain tokenization system using:
 
 ---
 
-## 🗂 Project Structure
-

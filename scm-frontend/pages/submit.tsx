@@ -2,9 +2,6 @@
 
 import { useState } from 'react';
 import axios from 'axios';
-import { Card, CardContent } from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Button } from '../components/ui/button';
 
 export default function SubmitPage() {
   const [itemName, setItemName] = useState('');
@@ -50,42 +47,45 @@ export default function SubmitPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-900 p-4">
-      <Card className="w-full max-w-md shadow-xl border border-gray-200 dark:border-zinc-700">
-        <CardContent className="space-y-4 p-6">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-            Submit Scale Data
-          </h2>
-          <Input
-            placeholder="Item Name"
-            value={itemName}
-            onChange={(e) => setItemName(e.target.value)}
-          />
-          <Input
-            placeholder="Weight (kg)"
-            value={weight}
-            onChange={(e) => setWeight(e.target.value)}
-          />
-          <Input
-            placeholder="Item Type"
-            value={itemType}
-            onChange={(e) => setItemType(e.target.value)}
-          />
-          <Input
-            placeholder="Timestamp (optional)"
-            value={timestamp}
-            onChange={(e) => setTimestamp(e.target.value)}
-          />
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || !itemName || !weight || !itemType}
-          >
-            {loading ? 'Submitting...' : 'Submit'}
-          </Button>
-          {response && <p className="text-green-600 dark:text-green-400">✅ {response}</p>}
-          {error && <p className="text-red-600 dark:text-red-400">❌ {error}</p>}
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-black text-gray-800 dark:text-white p-4">
+      <div className="w-full max-w-md shadow-xl border border-gray-200 dark:border-zinc-700 rounded-lg p-6">
+        <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+          Submit Scale Data
+        </h2>
+        <input
+          className="w-full p-2 mt-4 border rounded dark:bg-zinc-800 dark:text-white"
+          placeholder="Item Name"
+          value={itemName}
+          onChange={(e) => setItemName(e.target.value)}
+        />
+        <input
+          className="w-full p-2 mt-4 border rounded dark:bg-zinc-800 dark:text-white"
+          placeholder="Weight (kg)"
+          value={weight}
+          onChange={(e) => setWeight(e.target.value)}
+        />
+        <input
+          className="w-full p-2 mt-4 border rounded dark:bg-zinc-800 dark:text-white"
+          placeholder="Item Type"
+          value={itemType}
+          onChange={(e) => setItemType(e.target.value)}
+        />
+        <input
+          className="w-full p-2 mt-4 border rounded dark:bg-zinc-800 dark:text-white"
+          placeholder="Timestamp (optional)"
+          value={timestamp}
+          onChange={(e) => setTimestamp(e.target.value)}
+        />
+        <button
+          className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          onClick={handleSubmit}
+          disabled={loading || !itemName || !weight || !itemType}
+        >
+          {loading ? 'Submitting...' : 'Submit'}
+        </button>
+        {response && <p className="mt-4 text-green-600 dark:text-green-400">✅ {response}</p>}
+        {error && <p className="mt-4 text-red-600 dark:text-red-400">❌ {error}</p>}
+      </div>
     </div>
   );
 }

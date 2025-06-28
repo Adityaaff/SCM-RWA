@@ -38,7 +38,7 @@ export default function SubmitPage() {
       );
 
       setResponse(data.message || 'Success');
-    } catch (err) {
+    } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         setError(err.response?.data?.message || err.message || 'Submission failed');
       } else {
@@ -50,10 +50,12 @@ export default function SubmitPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-xl border border-gray-200">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-900 p-4">
+      <Card className="w-full max-w-md shadow-xl border border-gray-200 dark:border-zinc-700">
         <CardContent className="space-y-4 p-6">
-          <h2 className="text-xl font-bold text-gray-800">Submit Scale Data</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+            Submit Scale Data
+          </h2>
           <Input
             placeholder="Item Name"
             value={itemName}
@@ -79,8 +81,8 @@ export default function SubmitPage() {
             {loading ? 'Submitting...' : 'Submit'}
           </Button>
 
-          {response && <p className="text-green-600">✅ {response}</p>}
-          {error && <p className="text-red-600">❌ {error}</p>}
+          {response && <p className="text-green-600 dark:text-green-400">✅ {response}</p>}
+          {error && <p className="text-red-600 dark:text-red-400">❌ {error}</p>}
         </CardContent>
       </Card>
     </div>

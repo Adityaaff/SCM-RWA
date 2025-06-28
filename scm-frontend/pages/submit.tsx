@@ -21,7 +21,8 @@ export default function SubmitPage() {
     setResponse('');
 
     try {
-      const { data } = await axios.post “https://zinc-cat-bumper.glitch.me/submit-scale-data”,
+      const { data } = await axios.post(
+        "https://zinc-cat-bumper.glitch.me/submit-scale-data",
         {
           itemName,
           weight: parseFloat(weight),
@@ -75,7 +76,10 @@ export default function SubmitPage() {
             value={timestamp}
             onChange={(e) => setTimestamp(e.target.value)}
           />
-          <Button onClick={handleSubmit} disabled={loading || !itemName || !weight || !itemType}>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || !itemName || !weight || !itemType}
+          >
             {loading ? 'Submitting...' : 'Submit'}
           </Button>
           {response && <p className="text-green-600 dark:text-green-400">✅ {response}</p>}

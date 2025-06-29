@@ -40,14 +40,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem('walletConnected');
   };
 
-  // Auto-connect if previously connected
   useEffect(() => {
     if (localStorage.getItem('walletConnected')) {
       connect();
     }
   }, []);
 
-  // Handle account changes
   useEffect(() => {
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', (accounts: string[]) => {

@@ -22,13 +22,28 @@ export default function Header() {
       className="bg-white dark:bg-gray-900 shadow-md p-4 sticky top-0 z-10"
     >
       <nav className="flex justify-between items-center max-w-7xl mx-auto">
-        <Link href="/" className="text-xl font-bold">DEX Marketplace</Link>
+        <Link href="/" className="text-xl font-bold">
+          DEX Marketplace
+        </Link>
         <div className="flex gap-4 items-center">
-          <Link href="/create" className="hover:underline">Create Product</Link>
-          <Link href="/products" className="hover:underline">Products</Link>
-          <Link href="/confirm" className="hover:underline">Confirm Delivery</Link>
-          <Link href="/profile" className="hover:underline">Profile</Link>
-          <Link href="/settings" className="hover:underline">Settings</Link>
+          <Link href="/create" className="hover:underline">
+            Create Product
+          </Link>
+          <Link href="/products" className="hover:underline">
+            Products
+          </Link>
+          <Link href="/confirm" className="hover:underline">
+            Confirm Delivery
+          </Link>
+          <Link href="/profile" className="hover:underline">
+            Profile
+          </Link>
+          <Link href="/settings" className="hover:underline">
+            Settings
+          </Link>
+          <Link href="/submit" className="hover:underline">
+            Submit Scale Data
+          </Link>
           {address ? (
             <>
               <span className="text-sm">{shortenAddress(address)}</span>

@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { motion } from 'framer-motion';
-import ProductCard from '../../components/ProductCard';
-import TokenSelector from '../../components/TokenSelector';
-import { getContract, formatTokenAmount } from '../../lib/contracts';
-import { useWallet } from '../../lib/context/WalletContext';
+import ProductCard from '../components/ui/ProductCard';
+import TokenSelector from '../components/ui/TokenSelector';
+import { getContract, formatTokenAmount } from '../lib/contracts';
+import { useWallet } from '../lib/context/WalletContext';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 60 },

@@ -68,7 +68,8 @@ func submitScaleDataHandler(config Config) http.HandlerFunc {
 		}
 
 		// Set timestamp if not provided
-		if data.Timestamp <= 0 {
+		if data.Timestamp <= 0 The event includes messageId as an indexed parameter, which improves event filtering but does not affect the revert logic.
+Impact: This change does not directly influence the Token address mismatch revert, as it only affects event logging. However, the second version’s indexed messageId makes it easier to debug the error by filtering events on the CCIP messag{
 			data.Timestamp = time.Now().Unix()
 		}
 
@@ -127,7 +128,7 @@ func scaleDataHandler(config Config) http.HandlerFunc {
 func main() {
 	// Parse configuration from flags or environment variables
 	port := flag.String("port", getEnv("PORT", "8080"), "Port to run the server")
-	apiKey := flag.String("api-key", getEnv("API_KEY", ""), "API key for authentication")
+	apiKey := flag.String("api-key", getEnv("API_KEY", "testABCD"), "API key for authentication")
 	flag.Parse()
 
 	config := Config{

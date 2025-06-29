@@ -23,16 +23,19 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [address, setAddress] = useState<string | null>(null);
 
   const connect = async () => {
-    try {
-      const newSigner = await connectWallet();
-      const newAddress = await newSigner.getAddress();
-      setSigner(newSigner);
-      setAddress(newAddress);
-      localStorage.setItem('walletConnected', 'true');
-    } catch (error) {
-      console.error('Wallet connection failed:', error);
-    }
-  };
+  console.log("Attempting to connect wallet...");
+  try {
+    const newSigner = await connectWallet();
+    const newAddress = await newSigner.getAddress();
+    console.log("Wallet connected:", newAddress);
+
+    setSigner(newSigner);
+    setAddress(newAddress);
+    localStorage.setItem('walletConnected', 'true');
+  } catch (error) {
+    console.error("Wallet connection failed:", error);
+  }
+};
 
   const disconnect = () => {
     setSigner(null);

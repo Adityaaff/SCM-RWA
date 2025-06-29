@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useWallet } from '../lib/context/WalletContext';
+import { useState } from 'react';
 
 const fadeInDown = {
   hidden: { opacity: 0, y: -20 },
@@ -11,8 +12,18 @@ const fadeInDown = {
 
 export default function Header() {
   const { address, connect, disconnect } = useWallet();
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    try {
+      await connect();
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   return (
     <motion.header
@@ -56,10 +67,13 @@ export default function Header() {
             </>
           ) : (
             <button
-              onClick={connect}
-              className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium transition"
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className={`rounded-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm font-medium transition ${
+                isConnecting ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              Connect Wallet
+              {isConnecting ? 'Connecting...' : 'Connect Wallet'}
             </button>
           )}
         </div>

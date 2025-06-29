@@ -1,0 +1,21 @@
+{
+  "name": "rwaminter",
+  "version": "1.0.0",
+  "description": "Hardhat project for deploying ScaleDataConsumer, DEXMarketplace, RouterMinter, and AssetToken",
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js --network fuji",
+    "verify": "hardhat verify"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
+    "dotenv": "^16.4.5",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.22.12"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "4.9.0",
+    "@chainlink/contracts": "1.4.0"
+  }
+}

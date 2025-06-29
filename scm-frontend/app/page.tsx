@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { motion, Variants } from 'framer-motion'; // Import Variants
+import { motion, Variants } from 'framer-motion';
 import Link from 'next/link';
 
 const fadeInUp: Variants = {
@@ -12,7 +12,7 @@ const fadeInUp: Variants = {
     y: 0,
     transition: {
       delay: custom * 0.15,
-      type: 'spring' as const, // Use 'as const' to ensure literal type
+      type: 'spring' as const,
       stiffness: 120,
       damping: 12,
       mass: 0.8,

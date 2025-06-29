@@ -30,7 +30,7 @@ interface Product {
 
 const chainSelectors = {
   Sepolia: '16015286601757825753',
-  Avalanche Fuji: '14767482510784806043',
+  Avalanche: '14767482510784806043',
 };
 
 export default function Products() {

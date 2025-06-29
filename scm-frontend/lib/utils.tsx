@@ -13,31 +13,25 @@ interface ChainConfig {
 }
 
 const targetChain: ChainConfig = {
-  chainId: '0x1', 
-  chainName: 'Ethereum Mainnet',
-  rpcUrls: ['https://mainnet.infura.io/v3/YOUR_INFURA_KEY'],
+  chainId: '0xaa36a7', 
+  chainName: 'Sepolia Testnet',
+  rpcUrls: ['https://sepolia.infura.io/v3/YOUR_INFURA_KEY'],
   nativeCurrency: {
-    name: 'Ether',
+    name: 'Sepolia Ether',
     symbol: 'ETH',
     decimals: 18,
   },
-  blockExplorerUrls: ['https://etherscan.io'],
+  blockExplorerUrls: ['https://sepolia.etherscan.io'],
 };
 
 export const connectWallet = async (): Promise<ethers.Signer> => {
-  // Check if Ethereum provider exists
   if (!window.ethereum) {
     throw new Error('No Ethereum wallet detected. Please install MetaMask or another wallet.');
   }
 
   try {
-    // Request account access
     await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-    // Create provider
     const provider = new ethers.BrowserProvider(window.ethereum);
-
-    // Check network
     const network = await provider.getNetwork();
     if (network.chainId !== BigInt(targetChain.chainId)) {
       try {
@@ -67,7 +61,7 @@ export const connectWallet = async (): Promise<ethers.Signer> => {
 };
 
 export const formatTokenAmount = (amount: bigint, decimals: number): string => {
-  return ethers.formatUnits(amount, decimals);
+  return (Number(amount) / 10 ** decimals).toFixed(2);
 };
 
 export interface Profile {
@@ -75,19 +69,25 @@ export interface Profile {
   profilePicture: string;
 }
 
-export const saveProfile = (address: string, profile: Profile): void => {
+export const saveProfile = async (address: string, profile: Profile): Promise<void> => {
   if (!address) {
-    console.warn('No address provided for saving profile');
-    return;
+    throw new Error('No address provided for saving profile');
   }
-  localStorage.setItem(`profile_${address.toLowerCase()}`, JSON.stringify(profile));
+  try {
+    localStorage.setItem(`profile_${address.toLowerCase()}`, JSON.stringify(profile));
+  } catch (error) {
+    throw new Error('Failed to save profile to localStorage');
+  }
 };
 
-export const getProfile = (address: string): Profile => {
+export const getProfile = async (address: string): Promise<Profile> => {
   if (!address) {
-    console.warn('No address provided for retrieving profile');
-    return { username: '', profilePicture: '' };
+    throw new Error('No address provided for retrieving profile');
   }
-  const profile = localStorage.getItem(`profile_${address.toLowerCase()}`);
-  return profile ? JSON.parse(profile) : { username: '', profilePicture: '' };
+  try {
+    const profile = localStorage.getItem(`profile_${address.toLowerCase()}`);
+    return profile ? JSON.parse(profile) : { username: '', profilePicture: '' };
+  } catch (error) {
+    throw new Error('Failed to retrieve profile from localStorage');
+  }
 };

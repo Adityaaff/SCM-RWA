@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
 import { motion } from 'framer-motion';
-import { getContract } from '../../lib/contracts';
-import { formatTokenAmount } from '../../lib/utils'; // Corrected import
+import { ethers } from 'ethers';
 import { useWallet } from '../../lib/context/WalletContext';
+import { getContract } from '../../lib/contracts';
+import { formatTokenAmount } from '../../lib/utils';
+import ProductCard from '../../components/ui/ProductCard';
+import TokenSelector from '../../components/ui/TokenSelector';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 60 },
@@ -28,18 +30,19 @@ interface Product {
   dynamicPricing: boolean;
 }
 
-// Chain selectors for CCIP (testnet examples)
 const chainSelectors = {
   Sepolia: '16015286601757825753',
-  'Avalanche Fuji': '14767482510784806043',
-};
+  Avalanche: '14767482510784806043',
+} as const;
+
+type ChainName = keyof typeof chainSelectors;
 
 export default function Products() {
   const { signer, address, connect } = useWallet();
   const [products, setProducts] = useState<Product[]>([]);
   const [allowedTokens, setAllowedTokens] = useState<string[]>([]);
   const [selectedToken, setSelectedToken] = useState<string>('');
-  const [selectedChain, setSelectedChain] = useState<string>('Sepolia');
+  const [selectedChain, setSelectedChain] = useState<ChainName>('Sepolia');
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isBuying, setIsBuying] = useState<number | null>(null);
@@ -107,14 +110,14 @@ export default function Products() {
 
       if (isCrossChain) {
         const chainSelector = chainSelectors[selectedChain];
-        const contractAddress = '0xYourDeployedContractAddress'; // Update with actual Sepolia contract address
+        const contractAddress = 'MarketPlaceAddress';
         const tx = await contract.buyProductCrossChain(
           productId,
           selectedToken,
           tokenAmount,
           chainSelector,
           contractAddress,
-          { value: ethers.parseEther('0.01') } // CCIP fees in native token
+          { value: ethers.parseEther('0.01') }
         );
         await tx.wait();
         setStatus('Cross-chain purchase initiated successfully!');
@@ -126,7 +129,6 @@ export default function Products() {
         );
         const approveTx = await tokenContract.approve(contract.address, tokenAmount);
         await approveTx.wait();
-
         const tx = await contract.buyProductWithToken(productId, selectedToken, tokenAmount);
         await tx.wait();
         setProducts(products.map((p) => (p.id === productId ? { ...p, stock: p.stock - 1 } : p)));
@@ -170,26 +172,18 @@ export default function Products() {
         </motion.p>
       ) : (
         <>
-          <motion.div custom={1} variants={fadeInUp} initial="hidden" animate="visible" className="mb-6 w-full max-w-md">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Token</label>
-            <select
-              value={selectedToken}
-              onChange={(e) => setSelectedToken(e.target.value)}
-              className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
-            >
-              {allowedTokens.map((token) => (
-                <option key={token} value={token}>
-                  {token}
-                </option>
-              ))}
-            </select>
-          </motion.div>
+          <TokenSelector
+            tokens={allowedTokens}
+            selectedToken={selectedToken}
+            onChange={setSelectedToken}
+            custom={1}
+          />
           <motion.div custom={2} variants={fadeInUp} initial="hidden" animate="visible" className="mb-6 w-full max-w-md">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Chain</label>
             <select
               value={selectedChain}
-              onChange={(e) => setSelectedChain(e.target.value)}
-              className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
+              onChange={(e) => setSelectedChain(e.target.value as ChainName)}
+              className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {Object.keys(chainSelectors).map((chain) => (
                 <option key={chain} value={chain}>
@@ -198,43 +192,17 @@ export default function Products() {
               ))}
             </select>
           </motion.div>
-          <div className="w-full max-w-4xl space-y-6">
+          <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product, index) => (
-              <motion.div
+              <ProductCard
                 key={product.id}
-                custom={index + 3}
-                variants={fadeInUp}
-                initial="hidden"
-                animate="visible"
-                className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md"
-              >
-                <h2 className="text-xl font-semibold">{product.name}</h2>
-                <p className="text-gray-500 dark:text-gray-400 mt-2">{product.description}</p>
-                <p className="text-sm mt-2">
-                  Price: {formatTokenAmount(product.dynamicPricing ? product.minUSD + (product.maxUSD - product.minUSD) / BigInt(2) : product.minUSD, 6)} USD
-                </p>
-                <p className="text-sm">Stock: {product.stock}</p>
-                <div className="mt-4 flex space-x-4">
-                  <motion.button
-                    custom={index + 4}
-                    variants={fadeInUp}
-                    onClick={() => handleBuyProduct(product.id, false)}
-                    disabled={isBuying === product.id || !selectedToken}
-                    className="bg-purple-600 hover:bg-purple-700 text-white rounded-full py-3 px-6 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isBuying === product.id ? 'Purchasing...' : 'Buy Now (Same Chain)'}
-                  </motion.button>
-                  <motion.button
-                    custom={index + 5}
-                    variants={fadeInUp}
-                    onClick={() => handleBuyProduct(product.id, true)}
-                    disabled={isBuying === product.id || !selectedToken || !selectedChain}
-                    className="bg-teal-600 hover:bg-teal-700 text-white rounded-full py-3 px-6 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isBuying === product.id ? 'Purchasing...' : 'Buy Now (Cross-Chain)'}
-                  </motion.button>
-                </div>
-              </motion.div>
+                product={product}
+                index={index}
+                signer={signer}
+                selectedToken={selectedToken}
+                selectedChain={selectedChain}
+                onBuy={handleBuyProduct}
+              />
             ))}
           </div>
         </>

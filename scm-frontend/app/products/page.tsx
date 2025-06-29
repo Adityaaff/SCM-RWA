@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { motion } from 'framer-motion';
 import { getContract } from '../../lib/contracts';
-import { formatTokenAmount } from '../../lib/utils'; // Corrected import
+import { formatTokenAmount } from '../../lib/utils';
 import { useWallet } from '../../lib/context/WalletContext';
 
 const fadeInUp = {
@@ -28,7 +28,6 @@ interface Product {
   dynamicPricing: boolean;
 }
 
-// Chain selectors for CCIP (testnet examples)
 const chainSelectors = {
   Sepolia: '16015286601757825753',
   Avalanche Fuji: '14767482510784806043',
@@ -107,14 +106,14 @@ export default function Products() {
 
       if (isCrossChain) {
         const chainSelector = chainSelectors[selectedChain];
-        const contractAddress = '0xYourDeployedContractAddress'; // Update with actual Sepolia contract address
+        const contractAddress = 'CrooschainContracts'; 
         const tx = await contract.buyProductCrossChain(
           productId,
           selectedToken,
           tokenAmount,
           chainSelector,
           contractAddress,
-          { value: ethers.parseEther('0.01') } // CCIP fees in native token
+          { value: ethers.parseEther('0.01') }
         );
         await tx.wait();
         setStatus('Cross-chain purchase initiated successfully!');

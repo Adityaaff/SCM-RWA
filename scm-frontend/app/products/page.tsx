@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-<<<<<<< HEAD
 import { ethers } from 'ethers';
-=======
-import { getContract } from '../../lib/contracts';
-import { formatTokenAmount } from '../../lib/utils';
->>>>>>> b283a52bb871bc667fcc5830cda7e91ad9778f76
 import { useWallet } from '../../lib/context/WalletContext';
 import { getContract } from '../../lib/contracts';
 import { formatTokenAmount } from '../../lib/utils';
@@ -38,13 +33,9 @@ interface Product {
 const chainSelectors = {
   Sepolia: '16015286601757825753',
   Avalanche: '14767482510784806043',
-<<<<<<< HEAD
 } as const;
 
 type ChainName = keyof typeof chainSelectors;
-=======
-};
->>>>>>> b283a52bb871bc667fcc5830cda7e91ad9778f76
 
 export default function Products() {
   const { signer, address, connect } = useWallet();
@@ -119,11 +110,7 @@ export default function Products() {
 
       if (isCrossChain) {
         const chainSelector = chainSelectors[selectedChain];
-<<<<<<< HEAD
         const contractAddress = 'MarketPlaceAddress';
-=======
-        const contractAddress = 'CrooschainContracts'; 
->>>>>>> b283a52bb871bc667fcc5830cda7e91ad9778f76
         const tx = await contract.buyProductCrossChain(
           productId,
           selectedToken,

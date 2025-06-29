@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useWallet } from '../../lib/context/WalletContext';
-import { saveProfile, getProfile, Profile } from '../../lib/utils';
+import { saveProfile, getProfile } from '../../lib/utils';
+import type { Profile } from '../../lib/utils'; // Type-only import
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 60 },
@@ -21,10 +22,17 @@ export default function Profile() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (address) {
-      const profile = getProfile(address);
-      setForm(profile);
+    async function fetchProfile() {
+      if (!address) return;
+      try {
+        const profile = await getProfile(address); // Async call
+        setForm(profile || { username: '', profilePicture: '' });
+      } catch (error: any) {
+        console.error('Error fetching profile:', error);
+        setStatus(`Error: ${error.message || 'Failed to fetch profile'}`);
+      }
     }
+    fetchProfile();
   }, [address]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,9 +42,13 @@ export default function Profile() {
       await connect();
       return;
     }
+    if (!form.username) {
+      setStatus('Please enter a username');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      saveProfile(address, form);
+      await saveProfile(address, form); // Async call
       setStatus('Profile saved successfully!');
     } catch (error: any) {
       console.error('Error saving profile:', error);
@@ -93,8 +105,19 @@ export default function Profile() {
                 placeholder="Enter profile picture URL"
               />
             </motion.div>
+            <motion.div custom={3} variants={fadeInUp}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Wallet Address
+              </label>
+              <input
+                type="text"
+                value={address}
+                readOnly
+                className="w-full p-3 rounded-md bg-gray-200 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400"
+              />
+            </motion.div>
             <motion.button
-              custom={3}
+              custom={4}
               variants={fadeInUp}
               type="submit"
               disabled={isSubmitting}
@@ -106,7 +129,7 @@ export default function Profile() {
         )}
         {status && (
           <motion.p
-            custom={4}
+            custom={5}
             variants={fadeInUp}
             className={`mt-6 text-center text-sm ${
               status.includes('Error') ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'

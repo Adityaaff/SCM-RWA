@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { ethers } from 'ethers';
 import { motion } from 'framer-motion';
-import { useWallet } from '../lib/context/WalletContext';
+import { getContract } from '../../lib/contracts';
+import { useWallet } from '../../lib/context/WalletContext';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 60 },
@@ -14,11 +16,14 @@ const fadeInUp = {
 };
 
 export default function Mint() {
-  const { signer, connect } = useWallet();
-  const [form, setForm] = useState({
-    assetId: '',
-    metadata: '',
-  });
+  const { signer, address, connect } = useWallet();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [imageURL, setImageURL] = useState('');
+  const [minUSD, setMinUSD] = useState('');
+  const [maxUSD, setMaxUSD] = useState('');
+  const [stock, setStock] = useState('');
+  const [dynamicPricing, setDynamicPricing] = useState(false);
   const [status, setStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -29,16 +34,49 @@ export default function Mint() {
       await connect();
       return;
     }
+    if (!name || !description || !imageURL || !minUSD || !maxUSD || !stock) {
+      setStatus('Please fill in all fields');
+      return;
+    }
+    const minUSDAmount = parseFloat(minUSD);
+    const maxUSDAmount = parseFloat(maxUSD);
+    const stockAmount = parseInt(stock);
+    if (minUSDAmount > maxUSDAmount) {
+      setStatus('Minimum USD must be less than or equal to Maximum USD');
+      return;
+    }
+    if (stockAmount <= 0) {
+      setStatus('Stock must be greater than 0');
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatus('Minting RWA token...');
+    setStatus('Creating product...');
     try {
-      // Placeholder: Add logic to mint RWA token (e.g., call ERC-721 contract)
-      console.log('Minting RWA Token:', form);
-      setStatus('RWA token minted successfully!');
-      setForm({ assetId: '', metadata: '' });
+      const contract = await getContract(signer);
+      const minUSDBigInt = ethers.parseUnits(minUSD, 6); // Assuming 6 decimals for USD
+      const maxUSDBigInt = ethers.parseUnits(maxUSD, 6);
+      const tx = await contract.createProduct(
+        name,
+        description,
+        imageURL,
+        minUSDBigInt,
+        maxUSDBigInt,
+        stockAmount,
+        dynamicPricing
+      );
+      await tx.wait();
+      setStatus('Product created successfully!');
+      setName('');
+      setDescription('');
+      setImageURL('');
+      setMinUSD('');
+      setMaxUSD('');
+      setStock('');
+      setDynamicPricing(false);
     } catch (error: any) {
-      console.error('Error minting token:', error);
-      setStatus(`Error: ${error.message || 'Failed to mint token'}`);
+      console.error('Error creating product:', error);
+      setStatus(`Error: ${error.reason || error.message || 'Failed to create product'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -50,69 +88,123 @@ export default function Mint() {
         initial="hidden"
         animate="visible"
         variants={fadeInUp}
-        className="max-w-lg w-full bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md"
+        className="w-full max-w-md"
       >
-        <motion.h1 custom={0} variants={fadeInUp} className="text-3xl font-bold text-center mb-8">
-          Mint RWA Token
-        </motion.h1>
+        <h1 className="text-3xl font-bold mb-8 text-center">Create Product</h1>
         {!signer ? (
           <motion.button
             custom={1}
             variants={fadeInUp}
             onClick={connect}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 text-sm font-medium transition"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 px-6 text-sm font-medium transition"
           >
             Connect Wallet
           </motion.button>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <motion.div custom={1} variants={fadeInUp}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Asset ID
-              </label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
               <input
                 type="text"
-                value={form.assetId}
-                onChange={(e) => setForm({ ...form, assetId: e.target.value })}
-                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter asset ID"
-                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
+                placeholder="Product Name"
+                disabled={isSubmitting}
               />
-            </motion.div>
-            <motion.div custom={2} variants={fadeInUp}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Metadata URL
-              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
+                placeholder="Product Description"
+                rows={4}
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image URL</label>
               <input
-                type="url"
-                value={form.metadata}
-                onChange={(e) => setForm({ ...form, metadata: e.target.value })}
-                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter metadata URL"
-                required
+                type="text"
+                value={imageURL}
+                onChange={(e) => setImageURL(e.target.value)}
+                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
+                placeholder="https://example.com/image.jpg"
+                disabled={isSubmitting}
               />
-            </motion.div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Minimum USD</label>
+              <input
+                type="number"
+                step="0.01"
+                value={minUSD}
+                onChange={(e) => setMinUSD(e.target.value)}
+                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
+                placeholder="1.00"
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Maximum USD</label>
+              <input
+                type="number"
+                step="0.01"
+                value={maxUSD}
+                onChange={(e) => setMaxUSD(e.target.value)}
+                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
+                placeholder="2.00"
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Stock</label>
+              <input
+                type="number"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white"
+                placeholder="10"
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={dynamicPricing}
+                  onChange={(e) => setDynamicPricing(e.target.checked)}
+                  className="mr-2"
+                  disabled={isSubmitting}
+                />
+                Dynamic Pricing
+              </label>
+            </div>
             <motion.button
-              custom={3}
+              custom={2}
               variants={fadeInUp}
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-full py-3 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-full py-3 px-6 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Minting...' : 'Mint RWA Token'}
+              {isSubmitting ? 'Creating...' : 'Create Product'}
             </motion.button>
           </form>
         )}
         {status && (
           <motion.p
-            custom={4}
+            custom={3}
             variants={fadeInUp}
+            initial="hidden"
+            animate="visible"
             className={`mt-6 text-center text-sm ${
-              status.includes('Error') ? 'text-red-500 dark:text-red-400'имое 'text-green-600 dark:text-green-400'
+              status.includes('Error') ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'
             }`}
           >
             {status}
-          motion.p>
+          </motion.p>
         )}
       </motion.div>
     </div>

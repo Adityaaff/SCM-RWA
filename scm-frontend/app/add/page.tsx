@@ -55,7 +55,7 @@ export default function CreateProduct() {
         form.name,
         form.description,
         form.imageURL,
-        ethers.parseUnits(form.minUSD || '0', 6), // USD has 6 decimals (as per contract)
+        ethers.parseUnits(form.minUSD || '0', 6),
         ethers.parseUnits(form.maxUSD || '0', 6),
         Number(form.stock),
         form.dynamicPricing

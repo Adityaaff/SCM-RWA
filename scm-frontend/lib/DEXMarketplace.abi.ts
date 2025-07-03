@@ -1,6 +1,37 @@
 export const DEXMarketplace = {
   abi: [
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_wavax",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_wavaxFeed",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_usdc",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_usdcFeed",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_ccipRouter",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -145,6 +176,25 @@ export const DEXMarketplace = {
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "allowedTokens",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint256",
 				"name": "productId",
 				"type": "uint256"
@@ -172,7 +222,7 @@ export const DEXMarketplace = {
 		],
 		"name": "buyProductCrossChain",
 		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "payable",
 		"type": "function"
 	},
 	{
@@ -251,6 +301,19 @@ export const DEXMarketplace = {
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "ccipRouter",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -312,87 +375,12 @@ export const DEXMarketplace = {
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			}
-		],
-		"name": "removeAllowedToken",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_stableToken",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_wavax",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_wavaxFeed",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_ccipRouter",
-				"type": "address"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "receive"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "allowedTokens",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "ccipRouter",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [],
 		"name": "getAllowedTokens",
 		"outputs": [
 			{
 				"internalType": "address[]",
-				"name": "tokens",
+				"name": "",
 				"type": "address[]"
 			}
 		],
@@ -558,16 +546,16 @@ export const DEXMarketplace = {
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "stableToken",
-		"outputs": [
+		"inputs": [
 			{
 				"internalType": "address",
-				"name": "",
+				"name": "token",
 				"type": "address"
 			}
 		],
-		"stateMutability": "view",
+		"name": "removeAllowedToken",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -588,6 +576,10 @@ export const DEXMarketplace = {
 		],
 		"stateMutability": "view",
 		"type": "function"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
 	}
 ],
 };

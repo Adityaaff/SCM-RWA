@@ -73,7 +73,7 @@ export default function Profile() {
           <motion.button
             custom={1}
             variants={fadeInUp}
-            onClick={connect}
+            onClick={() => connect()}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 text-sm font-medium transition"
           >
             Connect Wallet

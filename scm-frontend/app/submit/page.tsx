@@ -1,9 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
+import { ethers } from 'ethers';
+import { BigNumberish } from 'ethers';
 import { useWallet } from '../../lib/context/WalletContext';
+import { toast } from 'react-toastify';
+
+const ROUTER_MINTER_ADDRESS = "0x9c164AAba4031AeD57e937Abb4eeC3110b277947"; 
+const ROUTER_MINTER_ABI = [
+  "function initiateMint() external returns (bytes32)",
+  "function isConsumerResultReceived(bytes32 requestId) external view returns (bool)",
+  "function debugRequest(bytes32 requestId) external view returns (address user, bool isMint, bool fulfilled, uint256 timestamp, bytes32 consumerRequestId, uint256 weight)",
+  "event MintRequestInitiated(bytes32 indexed requestId, address indexed user)",
+  "event MintCompleted(bytes32 indexed requestId, address indexed user, uint256 weight)",
+  "event DebugMintFailed(bytes32 indexed requestId, string reason)",
+  "event ProcessResultAttempted(bytes32 indexed requestId, bool success, string reason)",
+];
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 60 },
@@ -15,7 +29,7 @@ const fadeInUp = {
 };
 
 export default function SubmitPage() {
-  const { signer, connect } = useWallet();
+  const { signer, provider, connect } = useWallet();
   const [itemName, setItemName] = useState('');
   const [weight, setWeight] = useState('');
   const [itemType, setItemType] = useState('');
@@ -23,46 +37,148 @@ export default function SubmitPage() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState('');
   const [error, setError] = useState('');
+  const [requestId, setRequestId] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
-    if (!signer) {
-      setError('Please connect your wallet');
-      await connect();
+const handleSubmit = async () => {
+  if (!signer || !provider) {
+    setError('Please connect your wallet');
+    await connect();
+    return;
+  }
+
+  if (!itemName || !weight || !itemType) {
+    setError('Please fill in all required fields');
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+  setResponse('');
+
+  try {
+    const scaleDataResponse = await axios.post(
+      'https://zinc-cat-bumper.glitch.me/submit-scale-data',
+      {
+        itemName,
+        weight: parseFloat(weight),
+        itemType,
+        timestamp: timestamp ? parseInt(timestamp) : Math.floor(Date.now() / 1000),
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer TESTABCD',
+        },
+      }
+    );
+
+    setResponse(scaleDataResponse.data.message || 'Scale data submitted successfully');
+    toast.info('Scale data submitted, initiating mint...');
+
+    const contract = new ethers.Contract(ROUTER_MINTER_ADDRESS, ROUTER_MINTER_ABI, signer);
+    const tx = await contract.initiateMint();
+    toast.success(`Transaction submitted: ${tx.hash}`);
+
+    const receipt = await tx.wait();
+
+    let newRequestId: string | null = null;
+
+    if (receipt && receipt.logs.length > 0) {
+      const iface = new ethers.Interface(ROUTER_MINTER_ABI);
+      for (const log of receipt.logs) {
+        try {
+          const parsedLog = iface.parseLog(log);
+          if (parsedLog?.name === 'MintRequestInitiated') {
+            newRequestId = parsedLog.args.requestId;
+            setRequestId(newRequestId);
+            toast.info(`Mint request initiated with ID: ${newRequestId}`);
+            break;
+          }
+        } catch {
+          // Ignore logs that don't match
+        }
+      }
+    }
+
+    if (!newRequestId) {
+      toast.warning('Mint event not found. Transaction may still be successful.');
+      setResponse(`Transaction hash: ${tx.hash}`);
+      setRequestId(null);
       return;
     }
 
-    setLoading(true);
-    setError('');
-    setResponse('');
-
-    try {
-      const { data } = await axios.post(
-        'https://zinc-cat-bumper.glitch.me/submit-scale-data',
-        {
-          itemName,
-          weight: parseFloat(weight),
-          itemType,
-          timestamp: timestamp ? parseInt(timestamp) : Math.floor(Date.now() / 1000),
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer TESTABCD',
-          },
-        }
-      );
-
-      setResponse(data.message || 'Scale data submitted successfully');
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || err.message || 'Submission failed');
-      } else {
-        setError('Unknown error occurred');
-      }
-    } finally {
-      setLoading(false);
+    setResponse('Mint request initiated, awaiting consumer result');
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      setError(err.response?.data?.message || err.message || 'Submission failed');
+    } else if (err instanceof Error) {
+      setError(`Transaction failed: ${err.message}`);
+    } else {
+      setError('Unknown error occurred');
     }
-  };
+    toast.error(error);
+    setRequestId(null);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  // Poll for minting status
+  useEffect(() => {
+    if (!requestId || !provider) return;
+
+    const contract = new ethers.Contract(ROUTER_MINTER_ADDRESS, ROUTER_MINTER_ABI, provider);
+
+    const checkResult = async () => {
+      try {
+        const isReceived = await contract.isConsumerResultReceived(requestId);
+        if (isReceived) {
+          const [user, , fulfilled, , , weight] = await contract.debugRequest(requestId);
+          if (fulfilled) {
+            toast.success(`Minted ${ethers.formatEther(weight)} tRice for ${user}`);
+            setResponse(`Minted ${ethers.formatEther(weight)} tRice`);
+            setRequestId(null);
+          }
+        }
+      } catch (err) {
+        toast.error(`Error checking result: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setError(`Error checking result: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setRequestId(null);
+      }
+    };
+
+    contract.on('MintCompleted', (reqId: string, user: string, weight: BigNumberish) => {
+      if (reqId === requestId) {
+        toast.success(`Minted ${ethers.formatEther(weight)} tRice for ${user}`);
+        setResponse(`Minted ${ethers.formatEther(weight)} tRice`);
+        setRequestId(null);
+      }
+    });
+
+    contract.on('DebugMintFailed', (reqId: string, reason: string) => {
+      if (reqId === requestId) {
+        toast.error(`Mint failed: ${reason}`);
+        setError(`Mint failed: ${reason}`);
+        setRequestId(null);
+      }
+    });
+
+    contract.on('ProcessResultAttempted', (reqId: string, success: boolean, reason: string) => {
+      if (reqId === requestId && !success) {
+        toast.error(`Process failed: ${reason}`);
+        setError(`Process failed: ${reason}`);
+        setRequestId(null);
+      }
+    });
+
+    const interval = setInterval(checkResult, 5000); 
+    return () => {
+      clearInterval(interval);
+      contract.removeAllListeners();
+    };
+  }, [requestId, provider]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-800 dark:text-white p-8 sm:p-20 flex items-center justify-center">
@@ -83,7 +199,7 @@ export default function SubmitPage() {
           <motion.button
             custom={1}
             variants={fadeInUp}
-            onClick={connect}
+            onClick={() => connect()}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full py-2 text-sm font-medium transition"
           >
             Connect Wallet

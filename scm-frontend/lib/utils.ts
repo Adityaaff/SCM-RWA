@@ -12,27 +12,51 @@ interface ChainConfig {
   blockExplorerUrls?: string[];
 }
 
-const targetChain: ChainConfig = {
-  chainId: '0xaa36a7', 
-  chainName: 'Sepolia Testnet',
-  rpcUrls: ['https://sepolia.infura.io/v3/YOUR_INFURA_KEY'],
-  nativeCurrency: {
-    name: 'Sepolia Ether',
-    symbol: 'ETH',
-    decimals: 18,
+export const targetChains: ChainConfig[] = [
+  {
+    chainId: '0xaa36a7', 
+    chainName: 'Sepolia Testnet',
+    rpcUrls: ['https://sepolia.infura.io/v3/YOUR_INFURA_KEY'],
+    nativeCurrency: {
+      name: 'Sepolia Ether',
+      symbol: 'ETH',
+      decimals: 18,
+    },
+    blockExplorerUrls: ['https://sepolia.etherscan.io'],
   },
-  blockExplorerUrls: ['https://sepolia.etherscan.io'],
-};
+  {
+    chainId: '0xa869', 
+    chainName: 'Avalanche Fuji Testnet',
+    rpcUrls: ['https://avalanche-fuji-c-chain-rpc.publicnode.com'],
+    nativeCurrency: {
+      name: 'Avalanche',
+      symbol: 'AVAX',
+      decimals: 18,
+    },
+    blockExplorerUrls: ['https://testnet.snowtrace.io'],
+  },
+];
 
-export const connectWallet = async (): Promise<ethers.Signer> => {
+export const defaultChain: ChainConfig = targetChains[1];
+
+export const connectWallet = async (targetChainId: string = defaultChain.chainId): Promise<ethers.Signer> => {
   if (!window.ethereum) {
     throw new Error('No Ethereum wallet detected. Please install MetaMask or another wallet.');
   }
 
   try {
+    // Find the target chain configuration
+    const targetChain = targetChains.find(chain => chain.chainId === targetChainId);
+    if (!targetChain) {
+      throw new Error(`Chain ID ${targetChainId} not supported`);
+    }
+
+    // Request wallet connection
     await window.ethereum.request({ method: 'eth_requestAccounts' });
     const provider = new ethers.BrowserProvider(window.ethereum);
     const network = await provider.getNetwork();
+
+    // Check if the current network matches the target chain
     if (network.chainId !== BigInt(targetChain.chainId)) {
       try {
         await window.ethereum.request({
@@ -41,15 +65,17 @@ export const connectWallet = async (): Promise<ethers.Signer> => {
         });
       } catch (switchError: any) {
         if (switchError.code === 4902) {
+          // Chain not added, add it
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [targetChain],
           });
         } else {
-          throw new Error('Please switch to the correct network in your wallet.');
+          throw new Error(`Please switch to ${targetChain.chainName} in your wallet.`);
         }
       }
     }
+
     const signer = await provider.getSigner();
     return signer;
   } catch (error: any) {

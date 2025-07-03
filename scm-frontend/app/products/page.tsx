@@ -7,7 +7,6 @@ import { useWallet } from '../../lib/context/WalletContext';
 import { getContract } from '../../lib/contracts';
 import { formatTokenAmount } from '../../lib/utils';
 import ProductCard from '../../components/ui/ProductCard';
-import TokenSelector from '../../components/ui/TokenSelector';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 60 },
@@ -28,6 +27,7 @@ interface Product {
   maxUSD: bigint;
   stock: number;
   dynamicPricing: boolean;
+  tokenToSell: string;
 }
 
 const chainSelectors = {
@@ -35,26 +35,30 @@ const chainSelectors = {
   Avalanche: '14767482510784806043',
 } as const;
 
+const paymentTokens = [
+  { address: '0xd00ae08403B9bbb9124bB305C09058E32C39A48c', symbol: 'WAVAX' },
+  { address: '0x7bA2e5c37C4151d654Fcc4b41ffF3Fe693c23852', symbol: 'USDC' },
+];
+
 type ChainName = keyof typeof chainSelectors;
 
 export default function Products() {
   const { signer, address, connect } = useWallet();
   const [products, setProducts] = useState<Product[]>([]);
-  const [allowedTokens, setAllowedTokens] = useState<string[]>([]);
-  const [selectedToken, setSelectedToken] = useState<string>('');
-  const [selectedChain, setSelectedChain] = useState<ChainName>('Sepolia');
+  const [selectedChain, setSelectedChain] = useState<ChainName>('Avalanche');
+  const [selectedToken, setSelectedToken] = useState<string>(paymentTokens[0].address);
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isBuying, setIsBuying] = useState<number | null>(null);
+  const [sellTokenSymbol, setSellTokenSymbol] = useState<string>('SELL_TOKEN');
 
   useEffect(() => {
-    async function fetchProducts() {
+    async function fetchProductsAndSymbol() {
       if (!signer) return;
       setIsLoading(true);
       try {
         const contract = await getContract(signer);
         const productCounter = Number(await contract.productCounter());
-        const tokens = await contract.getAllowedTokens();
         const productList: Product[] = [];
 
         for (let i = 1; i <= productCounter; i++) {
@@ -70,12 +74,20 @@ export default function Products() {
               maxUSD: product.maxUSD,
               stock: Number(product.stock),
               dynamicPricing: product.dynamicPricing,
+              tokenToSell: product.tokenToSell,
             });
           }
         }
         setProducts(productList);
-        setAllowedTokens(tokens);
-        setSelectedToken(tokens[0] || '');
+
+        const tokenContract = new ethers.Contract(
+          '0x0A503c3edd83f952C16397D8d5773770619C1912',
+          ['function symbol() view returns (string)'],
+          signer
+        );
+        const symbol = await tokenContract.symbol();
+        setSellTokenSymbol(symbol);
+
         setStatus('');
       } catch (error: any) {
         console.error('Error fetching products:', error);
@@ -84,49 +96,103 @@ export default function Products() {
         setIsLoading(false);
       }
     }
-    fetchProducts();
+    fetchProductsAndSymbol();
   }, [signer]);
 
   const handleBuyProduct = async (productId: number, isCrossChain: boolean) => {
-    if (!signer) {
+    if (!signer || !address) {
       setStatus('Please connect your wallet');
       await connect();
       return;
     }
-    if (!selectedToken) {
-      setStatus('Please select a token');
+    const product = products.find((p) => p.id === productId);
+    if (!product) {
+      setStatus('Product not found');
+      return;
+    }
+    if (product.tokenToSell !== '0x0A503c3edd83f952C16397D8d5773770619C1912') {
+      setStatus('Error: Product has invalid sell token');
       return;
     }
     setIsBuying(productId);
     setStatus(isCrossChain ? 'Initiating cross-chain purchase...' : 'Purchasing product...');
     try {
       const contract = await getContract(signer);
-      const product = products.find((p) => p.id === productId);
-      if (!product) throw new Error('Product not found');
       const priceUSD = product.dynamicPricing
         ? product.minUSD + (product.maxUSD - product.minUSD) / BigInt(2)
         : product.minUSD;
       const tokenAmount = await contract.getTokenAmountFromUSD(selectedToken, priceUSD);
 
+      const tokenContract = new ethers.Contract(
+        selectedToken,
+        [
+          'function balanceOf(address account) view returns (uint256)',
+          'function decimals() view returns (uint8)',
+          'function approve(address spender, uint256 amount) returns (bool)',
+        ],
+        signer
+      );
+      const balance = await tokenContract.balanceOf(address);
+      const decimals = await tokenContract.decimals();
+      const formattedBalance = ethers.formatUnits(balance, decimals);
+      const requiredAmount = ethers.formatUnits(tokenAmount, decimals);
+      if (Number(formattedBalance) < Number(requiredAmount)) {
+        setStatus(
+          `Error: Insufficient ${paymentTokens.find((t) => t.address === selectedToken)?.symbol} balance. You have ${formattedBalance}, need ${requiredAmount}`
+        );
+        setIsBuying(null);
+        return;
+      }
+
       if (isCrossChain) {
         const chainSelector = chainSelectors[selectedChain];
-        const contractAddress = 'MarketPlaceAddress';
+        const receiverContractAddress = '0xYourReceiverContractAddress'; 
+        const routerAddress = await contract.ccipRouter();
+        const routerContract = new ethers.Contract(
+          routerAddress,
+          ['function getFee(uint64 destinationChainSelector, tuple(address receiver, bytes data, tuple(address token, uint256 amount)[] tokenAmounts, string extraArgs, address feeToken) view returns (uint256)'],
+          signer
+        );
+
+        const message = {
+          receiver: ethers.AbiCoder.defaultAbiCoder().encode(['address'], [receiverContractAddress]),
+          data: ethers.AbiCoder.defaultAbiCoder().encode(
+            ['uint256', 'address', 'address', 'uint256'],
+            [productId, address, selectedToken, tokenAmount]
+          ),
+          tokenAmounts: [{ token: selectedToken, amount: tokenAmount }],
+          extraArgs: ethers.AbiCoder.defaultAbiCoder().encode(['tuple(uint256 gasLimit)'], [{ gasLimit: 500000 }]),
+          feeToken: ethers.ZeroAddress,
+        };
+
+        const fee = await routerContract.getFee(chainSelector, message);
+        if (!signer.provider) {
+          setStatus('Error: Wallet provider not available');
+          setIsBuying(null);
+          return;
+        }
+        const userBalance = await signer.provider.getBalance(address);
+        if (userBalance < fee) {
+          setStatus(
+            `Error: Insufficient native token balance for CCIP fees. Need ${ethers.formatEther(fee)} ${
+              selectedChain === 'Sepolia' ? 'ETH' : 'AVAX'
+            }, have ${ethers.formatEther(userBalance)}`
+          );
+          setIsBuying(null);
+          return;
+        }
+
         const tx = await contract.buyProductCrossChain(
           productId,
           selectedToken,
           tokenAmount,
           chainSelector,
-          contractAddress,
-          { value: ethers.parseEther('0.01') }
+          receiverContractAddress,
+          { value: fee }
         );
         await tx.wait();
         setStatus('Cross-chain purchase initiated successfully!');
       } else {
-        const tokenContract = new ethers.Contract(
-          selectedToken,
-          ['function approve(address spender, uint256 amount) returns (bool)'],
-          signer
-        );
         const approveTx = await tokenContract.approve(contract.address, tokenAmount);
         await approveTx.wait();
         const tx = await contract.buyProductWithToken(productId, selectedToken, tokenAmount);
@@ -161,8 +227,8 @@ export default function Products() {
           variants={fadeInUp}
           initial="hidden"
           animate="visible"
-          onClick={connect}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 px-6 text-sm font-medium transition"
+          onClick={() => connect()}
+          className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm font-medium transition"
         >
           Connect Wallet
         </motion.button>
@@ -172,14 +238,22 @@ export default function Products() {
         </motion.p>
       ) : (
         <>
-          <TokenSelector
-            tokens={allowedTokens}
-            selectedToken={selectedToken}
-            onChange={setSelectedToken}
-            custom={1}
-          />
+          <motion.div custom={1} variants={fadeInUp} initial="hidden" animate="visible" className="mb-6 w-full max-w-md">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Payment Token</label>
+            <select
+              value={selectedToken}
+              onChange={(e) => setSelectedToken(e.target.value)}
+              className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {paymentTokens.map((token) => (
+                <option key={token.address} value={token.address}>
+                  {token.symbol}
+                </option>
+              ))}
+            </select>
+          </motion.div>
           <motion.div custom={2} variants={fadeInUp} initial="hidden" animate="visible" className="mb-6 w-full max-w-md">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Chain</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Chain for Cross-Chain Purchase</label>
             <select
               value={selectedChain}
               onChange={(e) => setSelectedChain(e.target.value as ChainName)}
@@ -199,9 +273,11 @@ export default function Products() {
                 product={product}
                 index={index}
                 signer={signer}
-                selectedToken={selectedToken}
                 selectedChain={selectedChain}
+                selectedToken={selectedToken}
+                sellTokenSymbol={sellTokenSymbol}
                 onBuy={handleBuyProduct}
+                isBuying={isBuying === product.id}
               />
             ))}
           </div>

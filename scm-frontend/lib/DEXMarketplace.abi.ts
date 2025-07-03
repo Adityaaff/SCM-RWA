@@ -1,35 +1,41 @@
 export const DEXMarketplace = {
   abi: [
 	{
+		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "productId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
 				"internalType": "address",
-				"name": "_stableToken",
+				"name": "buyer",
 				"type": "address"
 			},
 			{
+				"indexed": false,
 				"internalType": "address",
-				"name": "_weth",
+				"name": "token",
 				"type": "address"
 			},
 			{
-				"internalType": "address",
-				"name": "_wethFeed",
-				"type": "address"
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
 			},
 			{
-				"internalType": "address",
-				"name": "_wavax",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "_wavaxFeed",
-				"type": "address"
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "sourceChainSelector",
+				"type": "uint64"
 			}
 		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
+		"name": "CrossChainPurchaseRequested",
+		"type": "event"
 	},
 	{
 		"anonymous": false,
@@ -70,6 +76,12 @@ export const DEXMarketplace = {
 				"internalType": "address",
 				"name": "seller",
 				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "tokenToSell",
+				"type": "address"
 			}
 		],
 		"name": "ProductCreated",
@@ -101,6 +113,12 @@ export const DEXMarketplace = {
 				"internalType": "uint256",
 				"name": "tokenAmount",
 				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint64",
+				"name": "sourceChainSelector",
+				"type": "uint64"
 			}
 		],
 		"name": "ProductPurchased",
@@ -127,20 +145,34 @@ export const DEXMarketplace = {
 	{
 		"inputs": [
 			{
+				"internalType": "uint256",
+				"name": "productId",
+				"type": "uint256"
+			},
+			{
 				"internalType": "address",
-				"name": "",
+				"name": "tokenIn",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amountIn",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint64",
+				"name": "destinationChainSelector",
+				"type": "uint64"
+			},
+			{
+				"internalType": "address",
+				"name": "receiver",
 				"type": "address"
 			}
 		],
-		"name": "allowedTokens",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
+		"name": "buyProductCrossChain",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -162,6 +194,58 @@ export const DEXMarketplace = {
 			}
 		],
 		"name": "buyProductWithToken",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"components": [
+					{
+						"internalType": "bytes32",
+						"name": "messageId",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "uint64",
+						"name": "sourceChainSelector",
+						"type": "uint64"
+					},
+					{
+						"internalType": "bytes",
+						"name": "sender",
+						"type": "bytes"
+					},
+					{
+						"internalType": "bytes",
+						"name": "data",
+						"type": "bytes"
+					},
+					{
+						"components": [
+							{
+								"internalType": "address",
+								"name": "token",
+								"type": "address"
+							},
+							{
+								"internalType": "uint256",
+								"name": "amount",
+								"type": "uint256"
+							}
+						],
+						"internalType": "struct Client.EVMTokenAmount[]",
+						"name": "destTokenAmounts",
+						"type": "tuple[]"
+					}
+				],
+				"internalType": "struct Client.Any2EVMMessage",
+				"name": "message",
+				"type": "tuple"
+			}
+		],
+		"name": "ccipReceive",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -215,11 +299,91 @@ export const DEXMarketplace = {
 				"internalType": "bool",
 				"name": "dynamicPricing",
 				"type": "bool"
+			},
+			{
+				"internalType": "address",
+				"name": "tokenToSell",
+				"type": "address"
 			}
 		],
 		"name": "createProduct",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "token",
+				"type": "address"
+			}
+		],
+		"name": "removeAllowedToken",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_stableToken",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_wavax",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_wavaxFeed",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_ccipRouter",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "allowedTokens",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "ccipRouter",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -306,6 +470,11 @@ export const DEXMarketplace = {
 				"internalType": "bool",
 				"name": "delivered",
 				"type": "bool"
+			},
+			{
+				"internalType": "uint64",
+				"name": "sourceChainSelector",
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -378,22 +547,14 @@ export const DEXMarketplace = {
 				"internalType": "bool",
 				"name": "dynamicPricing",
 				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
+			},
 			{
 				"internalType": "address",
-				"name": "token",
+				"name": "tokenToSell",
 				"type": "address"
 			}
 		],
-		"name": "removeAllowedToken",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{

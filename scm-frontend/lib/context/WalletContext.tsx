@@ -2,50 +2,54 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { connectWallet } from '../utils';
+import { targetChains, defaultChain, connectWallet } from '../../lib/utils';
 
 interface WalletContextType {
   signer: ethers.Signer | null;
+  provider: ethers.BrowserProvider | null;
   address: string | null;
-  connect: () => Promise<void>;
-  disconnect: () => void;
+  connect: (chainId?: string) => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType>({
   signer: null,
+  provider: null,
   address: null,
   connect: async () => {},
-  disconnect: () => {},
 });
 
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [address, setAddress] = useState<string | null>(null);
 
-  const connect = async () => {
-  console.log("Attempting to connect wallet...");
-  try {
-    const newSigner = await connectWallet();
-    const newAddress = await newSigner.getAddress();
-    console.log("Wallet connected:", newAddress);
-
-    setSigner(newSigner);
-    setAddress(newAddress);
-    localStorage.setItem('walletConnected', 'true');
-  } catch (error) {
-    console.error("Wallet connection failed:", error);
-  }
-};
-
-  const disconnect = () => {
-    setSigner(null);
-    setAddress(null);
-    localStorage.removeItem('walletConnected');
+  const connect = async (chainId: string = defaultChain.chainId) => {
+    try {
+      const newSigner = await connectWallet(chainId);
+      const newProvider = new ethers.BrowserProvider(window.ethereum);
+      const newAddress = await newSigner.getAddress();
+      setSigner(newSigner);
+      setProvider(newProvider);
+      setAddress(newAddress);
+    } catch (error: any) {
+      console.error('Wallet connection failed:', error.message);
+    }
   };
 
   useEffect(() => {
-    if (localStorage.getItem('walletConnected')) {
-      connect();
+    if (window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      provider.getSigner().then((signer) => {
+        signer.getAddress().then((addr) => {
+          setSigner(signer);
+          setProvider(provider);
+          setAddress(addr);
+        }).catch(() => {
+          setSigner(null);
+          setProvider(null);
+          setAddress(null);
+        });
+      });
     }
   }, []);
 
@@ -53,16 +57,21 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length === 0) {
-          disconnect();
+          setSigner(null);
+          setProvider(null);
+          setAddress(null);
         } else {
           connect();
         }
+      });
+      window.ethereum.on('chainChanged', () => {
+        connect();
       });
     }
   }, []);
 
   return (
-    <WalletContext.Provider value={{ signer, address, connect, disconnect }}>
+    <WalletContext.Provider value={{ signer, provider, address, connect }}>
       {children}
     </WalletContext.Provider>
   );

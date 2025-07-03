@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { motion } from 'framer-motion';
 import { getContract } from '../../lib/contracts';
@@ -15,8 +15,10 @@ const fadeInUp = {
   }),
 };
 
+const SELL_TOKEN_ADDRESS = '0x0A503c3edd83f952C16397D8d5773770619C1912';
+
 export default function CreateProduct() {
-  const { signer, connect } = useWallet();
+  const { signer, address, connect } = useWallet();
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -25,9 +27,49 @@ export default function CreateProduct() {
     maxUSD: '',
     stock: '',
     dynamicPricing: false,
+    tokenToSell: SELL_TOKEN_ADDRESS,
   });
   const [status, setStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userBalance, setUserBalance] = useState<string | null>(null);
+  const [tokenSymbol, setTokenSymbol] = useState<string>('SELL_TOKEN');
+
+  useEffect(() => {
+    async function fetchTokenSymbol() {
+      if (!signer) return;
+      try {
+        const tokenContract = new ethers.Contract(
+          SELL_TOKEN_ADDRESS,
+          ['function symbol() view returns (string)'],
+          signer
+        );
+        const symbol = await tokenContract.symbol();
+        setTokenSymbol(symbol);
+      } catch (error) {
+        console.error('Error fetching token symbol:', error);
+      }
+    }
+    fetchTokenSymbol();
+    fetchUserBalance();
+  }, [signer, address]);
+
+  const fetchUserBalance = async () => {
+    if (!signer || !address) return;
+    try {
+      const tokenContract = new ethers.Contract(
+        SELL_TOKEN_ADDRESS,
+        ['function balanceOf(address account) view returns (uint256)', 'function decimals() view returns (uint8)'],
+        signer
+      );
+      const balance = await tokenContract.balanceOf(address);
+      const decimals = await tokenContract.decimals();
+      const formattedBalance = ethers.formatUnits(balance, decimals);
+      setUserBalance(formattedBalance);
+    } catch (error: any) {
+      console.error('Error fetching balance:', error);
+      setStatus(`Error: ${error.reason || error.message || 'Failed to fetch balance'}`);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +79,6 @@ export default function CreateProduct() {
       return;
     }
 
-    // Validate form inputs
     if (Number(form.minUSD) > Number(form.maxUSD)) {
       setStatus('Error: Minimum price must be less than or equal to maximum price');
       return;
@@ -51,14 +92,33 @@ export default function CreateProduct() {
     setIsSubmitting(true);
     try {
       const contract = await getContract(signer);
+      const minUSD = ethers.parseUnits(form.minUSD || '0', 6);
+      const maxUSD = ethers.parseUnits(form.maxUSD || '0', 6);
+      const stock = Number(form.stock);
+      const tokenAmount = await contract.getTokenAmountFromUSD(SELL_TOKEN_ADDRESS, minUSD);
+      const decimals = await new ethers.Contract(
+        SELL_TOKEN_ADDRESS,
+        ['function decimals() view returns (uint8)'],
+        signer
+      ).decimals();
+      const formattedTokenAmount = Number(ethers.formatUnits(tokenAmount, decimals));
+      if (userBalance && Number(userBalance) < formattedTokenAmount * stock) {
+        setStatus(
+          `Error: Insufficient balance. You have ${userBalance} ${tokenSymbol}, need ${formattedTokenAmount * stock}`
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       const tx = await contract.createProduct(
         form.name,
         form.description,
         form.imageURL,
-        ethers.parseUnits(form.minUSD || '0', 6),
-        ethers.parseUnits(form.maxUSD || '0', 6),
-        Number(form.stock),
-        form.dynamicPricing
+        minUSD,
+        maxUSD,
+        stock,
+        form.dynamicPricing,
+        SELL_TOKEN_ADDRESS
       );
       await tx.wait();
       setStatus('Product created successfully!');
@@ -70,7 +130,9 @@ export default function CreateProduct() {
         maxUSD: '',
         stock: '',
         dynamicPricing: false,
+        tokenToSell: SELL_TOKEN_ADDRESS,
       });
+      setUserBalance(null);
     } catch (error: any) {
       console.error('Error creating product:', error);
       setStatus(`Error: ${error.reason || error.message || 'Failed to create product'}`);
@@ -94,7 +156,7 @@ export default function CreateProduct() {
           <motion.button
             custom={1}
             variants={fadeInUp}
-            onClick={connect}
+            onClick={() => connect()}
             disabled={isSubmitting}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 text-sm font-medium transition disabled:opacity-50"
           >
@@ -184,6 +246,19 @@ export default function CreateProduct() {
               />
             </motion.div>
             <motion.div custom={7} variants={fadeInUp}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Token to Sell
+              </label>
+              <p className="w-full p-3 rounded-md bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white">
+                {tokenSymbol} ({SELL_TOKEN_ADDRESS})
+              </p>
+              {userBalance && (
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Your balance: {userBalance} {tokenSymbol}
+                </p>
+              )}
+            </motion.div>
+            <motion.div custom={8} variants={fadeInUp}>
               <label className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
                 Enable Dynamic Pricing
                 <input
@@ -195,7 +270,7 @@ export default function CreateProduct() {
               </label>
             </motion.div>
             <motion.button
-              custom={8}
+              custom={9}
               variants={fadeInUp}
               type="submit"
               disabled={isSubmitting || !signer}
@@ -207,7 +282,7 @@ export default function CreateProduct() {
         )}
         {status && (
           <motion.p
-            custom={9}
+            custom={10}
             variants={fadeInUp}
             className={`mt-6 text-center text-sm ${
               status.includes('Error') ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'

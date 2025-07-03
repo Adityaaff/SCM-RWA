@@ -130,11 +130,9 @@ export default function Confirm() {
       </motion.h1>
       {!signer ? (
         <motion.button
-          custom={1}
-          variants={fadeInUp}
           initial="hidden"
           animate="visible"
-          onClick={connect}
+          onClick={() => connect()} // Correct: Wrapped in arrow function
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-full py-3 px-6 text-sm font-medium transition"
         >
           Connect Wallet
